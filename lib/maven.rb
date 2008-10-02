@@ -23,7 +23,7 @@ module Maven
   
   DEFAULT_PROJECT_SETTINGS = "mvn_projects.yml"
   
-  def self.create_project(filename)
+  def self.create_project(filename, settings = nil)
     if filename.is_a?(Hash)
       Project.new("unnamed", filename)
     elsif /\.xml\Z/i =~ filename
@@ -32,12 +32,15 @@ module Maven
         pom = REXML::Document.new(f)
         pom.elements.each("project") do |proj|
           proj.extend(IgnoreNilElement)
-          return Project.new(proj.text_value('name', 'artifactId'), {
+          settings = {
+            'rake_prefix' => 'mvn', 
+            'pom_dir' => File.dirname(filename).gsub(/[\\\/]/, '_')
+          }.update(settings || {})
+          settings.update({
             'group_id' => proj.text_value('groupId'),
-            'artifact_id' => proj.text_value('artifactId'),
-            'rake_prefix' => 'mvn',
-            'pom_dir' => File.dirname(filename)
-          })
+            'artifact_id' => proj.text_value('artifactId')
+            })
+          return Project.new(proj.text_value('name', 'artifactId'), settings)
         end
       end
     else
@@ -169,7 +172,7 @@ module Maven
         send("#{key}=", value)
       end
       @pom_dir||= name.dup
-      @rake_predix ||= "java"
+      @rake_prefix ||= "java"
       @plugin_settings ||= DEFAULT_MVN_PLUGINS_SETTING
     end
     

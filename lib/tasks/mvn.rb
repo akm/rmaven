@@ -23,29 +23,68 @@ end
 ARGV_HASH = build_args_hash
 ARGV_KEY_IGNORED = ARGV_HASH.map{|key, value| value || key}
 
+RAKEABLE_SETTING_YAML = 'rakeable.yml'
 
-project = Maven.create_project('pom.xml')
+desc "show help about mvn task"
+task :mvn do
+  show_file('USAGE.txt')
+end
 
-  desc "show help about mvn task"
-  task project.rake_prefix do
+namespace :mvn do
+  desc "show usage"
+  task :usage do
     show_file('USAGE.txt')
   end
-
-  namespace project.rake_prefix do
-    desc "show usage"
-    task :usage do
-      show_file('USAGE.txt')
+  
+  desc "generate example setting yaml for rakeable"
+  task :generate_yaml do
+    File.open(RAKEABLE_SETTING_YAML, 'w') do |f|
+      YAML.dump(
+        {'sub_project_name' => 
+          {
+            'pom_dir' => 'proj1', 
+            'rake_prefix' => 'proj1', 
+            'group_id' => 'your.organization.id',
+            'artifact_id' => 'proj1'
+          } 
+        }, f)
     end
-    
-    desc "create mavenized java project in directory '#{project.pom_dir}'"
-    task :create do
-      project.execute_without_cd("archetype:create", project.archetype_create_args)
-      FileUtils.mv(project.artifact_id, project.pom_dir, :verbose => project.verbose)
-      open(project.plugin_setting_path, "w") do |f|
-        YAML.dump(Maven::PLUGINS, f)
+  end
+end
+
+
+poms = nil
+if File.exist?('rakeable.yml')
+  open('rakeable.yml') do |f|
+    poms = YAML.load(f)
+  end
+end
+
+if File.exist?('pom.xml')
+  poms['java'] = {'pom' => 'pom.xml'}
+end
+
+(poms || {}).each do |project_name, settings|
+  filename = settings['pom']
+  filename ||= File.join(*(project_name.split('/') + ['pom.xml']))
+  unless File.exist?(filename)
+    project = Maven::Project.new(project_name, settings)
+    namespace project.rake_prefix do
+      desc "create mavenized java project in directory '#{project.pom_dir}'"
+      task :create do
+        project.execute_without_cd("archetype:create", project.archetype_create_args)
+        FileUtils.mv(project.artifact_id, project.pom_dir, :verbose => project.verbose)
+        open(project.plugin_setting_path, "w") do |f|
+          YAML.dump(Maven::PLUGINS, f)
+        end
       end
     end
+    next
+  end
 
+  project = Maven.create_project(filename, settings)
+  
+  namespace project.rake_prefix do
     Maven::LIFECYCLES.each do |lifecycle|
       binding = lifecycle[:binding]
       binding = ". [binding] #{binding}" if binding
@@ -118,3 +157,4 @@ project = Maven.create_project('pom.xml')
     end
     
   end
+end
