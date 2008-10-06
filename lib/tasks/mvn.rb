@@ -23,7 +23,7 @@ end
 ARGV_HASH = build_args_hash
 ARGV_KEY_IGNORED = ARGV_HASH.map{|key, value| value || key}
 
-RAKEABLE_SETTING_YAML = 'rakeable.yml'
+RMAVEN_SETTING_YAML = 'rmaven.yml'
 
 desc "show help about mvn task"
 task :mvn do
@@ -36,9 +36,9 @@ namespace :mvn do
     show_file('USAGE.txt')
   end
   
-  desc "generate example setting yaml for rakeable"
+  desc "generate example setting yaml for rmaven"
   task :generate_yaml do
-    File.open(RAKEABLE_SETTING_YAML, 'w') do |f|
+    File.open(RMAVEN_SETTING_YAML, 'w') do |f|
       YAML.dump(
         {'sub_project_name' => 
           {
@@ -54,8 +54,8 @@ end
 
 
 poms = nil
-if File.exist?('rakeable.yml')
-  open('rakeable.yml') do |f|
+if File.exist?('rmaven.yml')
+  open('rmaven.yml') do |f|
     poms = YAML.load(f)
   end
 end
